@@ -16,6 +16,8 @@ dependencies = [
     "tensorboard",
     # images
     "Pillow",
+    # misc
+    "environs",
 ]
 dynamic = ["version"]
 
