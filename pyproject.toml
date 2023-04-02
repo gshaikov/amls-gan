@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm"]
+build-backend = "setuptools.build_meta"
+
+# Project
+
+[project]
+name = "amls-gan"
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    # training
+    "torch>=2.0",
+    "torchvision",
+    "pytorch-lightning",
+    "tensorboard",
+    # images
+    "Pillow",
+]
+dynamic = ["version"]
+
+[project.optional-dependencies]
+dev = [
+    # testing
+    "pytest",
+    # format
+    "black",
+    "isort",
+    # lint
+    "flake8",
+    # repl
+    "ipython",
+]
+
+# Tools
+
+[tool.setuptools]
+packages = ["amls_gan"]
+
+[tool.black]
+line-length = 120
+
+[tool.isort]
+atomic = true
+profile = "black"
+line_length = 120
+skip_gitignore = true
