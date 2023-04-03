@@ -10,22 +10,22 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from torchvision.datasets import CIFAR10
 
-logging.basicConfig(level=logging.INFO)
 env = Env()
 
 Splits = Literal["train", "test"]
 
 
-class TensorCIFAR10(Dataset):
+class TensorCIFAR10(Dataset[Tensor]):
     """
     https://pytorch.org/vision/stable/generated/torchvision.datasets.CIFAR10.html
     """
 
-    dir: Path = env.path("CIFAR10_DIR", default=Path("./data/cifar10"))
+    dir: Path = env.path("CIFAR10_DIR", default=Path.home() / "datasets/cifar10")
 
     @classmethod
     def create(cls, split: Splits, download: bool = False) -> "TensorCIFAR10":
-        cls.dir.mkdir(parents=True, exist_ok=True)
+        if not cls.dir.exists():
+            cls.dir.mkdir(parents=True)
         cifar = CIFAR10(root=str(cls.dir), train=split == "train", download=download)
         return cls(cifar)
 
@@ -44,6 +44,9 @@ class TensorCIFAR10(Dataset):
     def __len__(self) -> int:
         return len(self.cifar10)
 
+    def image_size(self) -> tuple[int, int, int]:
+        return tuple(self[0].shape)
+
 
 if __name__ == "__main__":
     train = TensorCIFAR10.create("train", download=True)
@@ -52,4 +55,6 @@ if __name__ == "__main__":
     assert isinstance(test[0], Tensor)
     assert train[0].dtype == torch.uint8
     assert test[0].dtype == torch.uint8
-    logging.info(f"example size: {train[0].shape}")
+    assert train.image_size() == (1, 28, 28)
+
+    logging.info(f"example size: {train.image_size()}")
