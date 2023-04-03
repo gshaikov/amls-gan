@@ -144,6 +144,7 @@ class Trainer:
                 # Log fake images per epoch
                 with torch.no_grad():
                     fake_imgs_static = self.gen(static_noise).cpu()
+                    fake_imgs_static = self.gen.unflatten(fake_imgs_static)
                 grid = vutils.make_grid(fake_imgs_static, nrow=8, padding=2, normalize=True)
                 tensorboard.add_image("image", grid, epoch)
 
