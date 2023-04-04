@@ -11,3 +11,11 @@ fit:
 
 clean:
 	rm -rf $(dir $(RUN_DIR))*
+
+test:
+	pytest tests
+
+lint:
+	black --check amls_gan tests
+	isort --check amls_gan tests
+	flake8 amls_gan tests
