@@ -12,11 +12,12 @@ dependencies = [
     # training
     "torch>=2.0",
     "torchvision",
-    "pytorch-lightning",
     "tensorboard",
+    "torch-tb-profiler",
     # images
     "Pillow",
-    # misc
+    # utils
+    "tqdm",
     "environs",
 ]
 dynamic = ["version"]
@@ -30,8 +31,10 @@ dev = [
     "isort",
     # lint
     "flake8",
-    # repl
+    # exploration
     "ipython",
+    "jupyter",
+    "matplotlib",
 ]
 
 # Tools

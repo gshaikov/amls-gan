@@ -1,13 +1,16 @@
 import logging
 
 import torch
+import torchvision.utils as vutils
 from torch import Tensor, nn, optim
+from torch.utils.tensorboard.writer import SummaryWriter
 from torchvision import transforms as T
+from tqdm import tqdm
 
 from amls_gan.datasets.module import DataModule
 from amls_gan.models.gan import Discriminator, Generator
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 def mnist_transforms() -> T.Compose:
@@ -66,59 +69,84 @@ class Trainer:
             weight_decay=1e-4,
         )
 
-        self.epochs = 1
+        self.epochs = 100
 
     def fit(self) -> None:
+        tensorboard = SummaryWriter()
+
         train_dl = self.datamodule.train_dataloader()
+        steps_in_epoch = len(train_dl)
+
+        static_noise = self.gen.noise(64).to(self.device)
+
         for epoch in range(self.epochs):
             real_imgs: Tensor
-            for i, real_imgs in enumerate(train_dl):
-                batch_size = len(real_imgs)
 
-                # Train discriminator
-                self.gen.eval()
-                self.dis.train()
+            with tqdm(train_dl) as t:
+                t.set_description(f"Epoch: {epoch}")
 
-                real_imgs = self.transforms(real_imgs)
-                real_imgs = real_imgs.to(self.device)
+                for inner_step, real_imgs in enumerate(t):
+                    global_step = epoch * steps_in_epoch + inner_step
 
-                real_flat_imgs = self.dis.flatten(real_imgs)
+                    batch_size = len(real_imgs)
 
+                    # Train discriminator
+                    self.gen.eval()
+                    self.dis.train()
+
+                    real_imgs = self.transforms(real_imgs)
+                    real_imgs = real_imgs.to(self.device)
+
+                    real_flat_imgs = self.dis.flatten(real_imgs)
+
+                    with torch.no_grad():
+                        noise_dis = self.gen.noise(batch_size).to(self.device)
+                        fake_flat_imgs_dis = self.gen(noise_dis)
+
+                    batch_dis = torch.cat([real_flat_imgs, fake_flat_imgs_dis])
+                    targets_dis = torch.cat(
+                        [
+                            torch.ones((batch_size, 1), dtype=torch.float, device=self.device),
+                            torch.zeros((batch_size, 1), dtype=torch.float, device=self.device),
+                        ]
+                    )
+
+                    probs_dis = self.dis(batch_dis)
+                    loss_dis = self.loss(probs_dis, targets_dis)
+
+                    self.opt_dis.zero_grad()
+                    loss_dis.backward()
+                    self.opt_dis.step()
+
+                    # Train generator
+                    self.gen.train()
+                    self.dis.eval()
+
+                    targets_gen = torch.ones((batch_size, 1), dtype=torch.float, device=self.device)
+
+                    noise_gen = self.gen.noise(batch_size).to(self.device)
+                    fake_flat_imgs_gen = self.gen(noise_gen)
+                    probs_gen = self.dis(fake_flat_imgs_gen)
+                    loss_gen = self.loss(probs_gen, targets_gen)
+
+                    self.opt_gen.zero_grad()
+                    loss_gen.backward()
+                    self.opt_gen.step()
+
+                    # Log loss per step
+                    loss_gen = loss_gen.detach().cpu().item()
+                    loss_dis = loss_dis.detach().cpu().item()
+                    t.set_postfix(loss_gen=loss_gen, loss_dis=loss_dis)
+                    tensorboard.add_scalar("Loss/Gen", loss_gen, global_step)
+                    tensorboard.add_scalar("Loss/Dis", loss_dis, global_step)
+
+                # Log fake images per epoch
                 with torch.no_grad():
-                    noise_dis = self.gen.noise(batch_size).to(self.device)
-                    fake_flat_imgs_dis = self.gen(noise_dis)
+                    fake_imgs_static = self.gen(static_noise).cpu()
+                grid = vutils.make_grid(fake_imgs_static, nrow=8, padding=2, normalize=True)
+                tensorboard.add_image("image", grid, epoch)
 
-                batch_dis = torch.cat([real_flat_imgs, fake_flat_imgs_dis])
-                targets_dis = torch.cat(
-                    [
-                        torch.ones((batch_size, 1), dtype=torch.float, device=self.device),
-                        torch.zeros((batch_size, 1), dtype=torch.float, device=self.device),
-                    ]
-                )
-
-                probs_dis = self.dis(batch_dis)
-                loss_dis = self.loss(probs_dis, targets_dis)
-
-                self.opt_dis.zero_grad()
-                loss_dis.backward()
-                self.opt_dis.step()
-
-                # Train generator
-                self.gen.train()
-                self.dis.eval()
-
-                targets_gen = torch.ones((batch_size, 1), dtype=torch.float, device=self.device)
-
-                noise_gen = self.gen.noise(batch_size).to(self.device)
-                fake_flat_imgs_gen = self.gen(noise_gen)
-                probs_gen = self.dis(fake_flat_imgs_gen)
-                loss_gen = self.loss(probs_gen, targets_gen)
-
-                self.opt_gen.zero_grad()
-                loss_gen.backward()
-                self.opt_gen.step()
-
-                logging.info(f"Dis: {loss_dis.detach().cpu()}, Gen: {loss_gen.detach().cpu()}")
+        tensorboard.close()
 
 
 def run() -> None:
