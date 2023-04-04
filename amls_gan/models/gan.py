@@ -26,7 +26,7 @@ class Generator(nn.Module):
             # use tanh
             # images are zero mean and range of hyperbolic tangent
             # multi-res discriminator
-            nn.Sigmoid(),
+            nn.Tanh(),
         )
 
     @staticmethod
