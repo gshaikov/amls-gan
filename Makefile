@@ -8,3 +8,6 @@ download.%:
 
 fit:
 	python -m amls_gan.trainer
+
+clean:
+	rm -rf $(dir $(RUN_DIR))*
