@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 from amls_gan import RUN_DIR
 from amls_gan.datasets.module import DataModule
-from amls_gan.models.gan import Discriminator, Generator
+from amls_gan.models.mlp_gan import MLPDiscriminator, MLPGenerator
 
 logging.basicConfig(level=logging.DEBUG)
 
@@ -44,11 +44,11 @@ class Trainer:
 
         noise_dim = 100
 
-        gen = Generator(noise_dim=noise_dim, image_shape=image_shape).to(self.device)
+        gen = MLPGenerator(noise_dim=noise_dim, image_shape=image_shape).to(self.device)
         gen.init_weights_()
         self.gen = gen
 
-        dis = Discriminator(image_shape).to(self.device)
+        dis = MLPDiscriminator(image_shape).to(self.device)
         dis.init_weights_()
         self.dis = dis
 

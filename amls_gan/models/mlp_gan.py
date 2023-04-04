@@ -6,7 +6,7 @@ from torch import Tensor, nn
 from amls_gan._math import prod
 
 
-class Generator(nn.Module):
+class MLPGenerator(nn.Module):
     def __init__(self, *, noise_dim: int, image_shape: tuple[int, int, int]) -> None:
         super().__init__()
         self.noise_dim = noise_dim
@@ -23,9 +23,6 @@ class Generator(nn.Module):
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(1200, self.output_dim),
-            # use tanh
-            # images are zero mean and range of hyperbolic tangent
-            # multi-res discriminator
             nn.Tanh(),
         )
 
@@ -75,9 +72,7 @@ class Generator(nn.Module):
         return x.unflatten(dim=total_dims - 1, sizes=self.image_shape)
 
 
-class Discriminator(nn.Module):
-    # Make sure discriminator is not too small
-
+class MLPDiscriminator(nn.Module):
     def __init__(self, image_shape: tuple[int, int, int]) -> None:
         super().__init__()
         self.image_shape = image_shape
@@ -93,7 +88,6 @@ class Discriminator(nn.Module):
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(1200, 1),
-            # hinge loss
             nn.Sigmoid(),
         )
 
