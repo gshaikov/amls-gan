@@ -7,6 +7,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 from torchvision import transforms as T
 from tqdm import tqdm
 
+from amls_gan import RUN_DIR
 from amls_gan.datasets.module import DataModule
 from amls_gan.models.gan import Discriminator, Generator
 
@@ -72,7 +73,7 @@ class Trainer:
         self.epochs = 100
 
     def fit(self) -> None:
-        tensorboard = SummaryWriter()
+        tensorboard = SummaryWriter(log_dir=RUN_DIR)
 
         train_dl = self.datamodule.train_dataloader()
         steps_in_epoch = len(train_dl)

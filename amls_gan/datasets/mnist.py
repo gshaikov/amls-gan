@@ -10,6 +10,8 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from torchvision.datasets import MNIST
 
+from amls_gan import DATASETS_DIR
+
 env = Env()
 
 Splits = Literal["train", "test"]
@@ -20,7 +22,7 @@ class TensorMNIST(Dataset[Tensor]):
     https://pytorch.org/vision/stable/generated/torchvision.datasets.MNIST.html
     """
 
-    dir: Path = env.path("MNIST_DIR", default=Path.home() / "datasets/mnist")
+    dir: Path = env.path("MNIST_DIR", default=DATASETS_DIR / "mnist")
 
     @classmethod
     def create(cls, split: Splits, download: bool = False) -> "TensorMNIST":

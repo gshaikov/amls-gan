@@ -10,6 +10,8 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from torchvision.datasets import CIFAR10
 
+from amls_gan import DATASETS_DIR
+
 env = Env()
 
 Splits = Literal["train", "test"]
@@ -20,7 +22,7 @@ class TensorCIFAR10(Dataset[Tensor]):
     https://pytorch.org/vision/stable/generated/torchvision.datasets.CIFAR10.html
     """
 
-    dir: Path = env.path("CIFAR10_DIR", default=Path.home() / "datasets/cifar10")
+    dir: Path = env.path("CIFAR10_DIR", default=DATASETS_DIR / "cifar10")
 
     @classmethod
     def create(cls, split: Splits, download: bool = False) -> "TensorCIFAR10":
