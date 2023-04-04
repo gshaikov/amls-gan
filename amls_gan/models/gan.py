@@ -15,9 +15,11 @@ class Generator(nn.Module):
         self.output_dim = prod(image_shape)
         self.layers = nn.Sequential(
             nn.Linear(noise_dim, 1200),
+            nn.BatchNorm1d(1200),
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(1200, 1200),
+            nn.BatchNorm1d(1200),
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(1200, self.output_dim),
@@ -31,9 +33,14 @@ class Generator(nn.Module):
     def _init_weights_fn(module: nn.Module) -> None:
         name = module.__class__.__name__
         if name.find("Linear") != -1:
-            logging.info(f"Generator: weight init: {name}")
             assert isinstance(module, nn.Linear)
             nn.init.uniform_(module.weight.data, -0.05, 0.05)
+            logging.info(f"Gen init: {name}")
+        elif name.find("BatchNorm") != -1:
+            assert isinstance(module, nn.BatchNorm1d)
+            nn.init.normal_(module.weight.data, 1.0, 0.02)
+            nn.init.constant_(module.bias.data, 0)
+            logging.info(f"Gen init: {name}")
 
     def init_weights_(self) -> None:
         self.apply(self._init_weights_fn)
@@ -78,9 +85,11 @@ class Discriminator(nn.Module):
         self.input_dim = prod(image_shape)
         self.layers = nn.Sequential(
             nn.Linear(self.input_dim, 1200),
+            nn.BatchNorm1d(1200),
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(1200, 1200),
+            nn.BatchNorm1d(1200),
             nn.ReLU(),
             nn.Dropout(),
             nn.Linear(1200, 1),
@@ -93,8 +102,13 @@ class Discriminator(nn.Module):
         name = module.__class__.__name__
         if name.find("Linear") != -1:
             assert isinstance(module, nn.Linear)
-            logging.info(f"Discriminator: weight init: {name}")
             nn.init.uniform_(module.weight.data, -0.05, 0.05)
+            logging.info(f"Dis init: {name}")
+        elif name.find("BatchNorm") != -1:
+            assert isinstance(module, nn.BatchNorm1d)
+            nn.init.normal_(module.weight.data, 1.0, 0.02)
+            nn.init.constant_(module.bias.data, 0)
+            logging.info(f"Dis init: {name}")
 
     def init_weights_(self) -> None:
         self.apply(self._init_weights_fn)
