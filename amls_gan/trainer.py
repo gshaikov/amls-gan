@@ -7,7 +7,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 from torchvision import transforms as T
 from tqdm import tqdm
 
-from amls_gan import RUN_DIR
+from amls_gan import ACCELERATOR, RUN_DIR
 from amls_gan.datasets.module import DataModule
 from amls_gan.models.mlp_gan import MLPDiscriminator, MLPGenerator
 
@@ -38,7 +38,7 @@ class Trainer:
 
         self.transforms = mnist_transforms()
 
-        self.device = torch.device("mps")
+        self.device = torch.device(ACCELERATOR)
 
         image_shape = self.datamodule.image_size()
 

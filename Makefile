@@ -3,10 +3,13 @@ datetime := $(shell date -Iseconds)
 export RUN_DIR := $(shell pwd)/runs/$(datetime)
 export DATASETS_DIR := $(HOME)/datasets
 
+ACCELERATOR ?= mps
+
 download.%:
 	python -m amls_gan.datasets.$*
 
 fit:
+	ACCELERATOR=$(ACCELERATOR) \
 	python -m amls_gan.trainer
 
 clean:

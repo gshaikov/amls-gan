@@ -8,6 +8,9 @@ env = Env()
 
 RUN_DIR: Path = env.path("RUN_DIR")
 DATASETS_DIR: Path = env.path("DATASETS_DIR", default=Path.home() / "datasets")
+
+ACCELERATOR: str = env.str("ACCELERATOR")
+
 RND_SEED: int = env.int("RND_SEED", default=42)
 
 random.seed(RND_SEED)
