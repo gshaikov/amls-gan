@@ -12,6 +12,8 @@ from torchvision.datasets import MNIST
 
 from amls_gan import DATASETS_DIR
 
+logging.basicConfig(level=logging.INFO)
+
 env = Env()
 
 Splits = Literal["train", "test"]
@@ -57,6 +59,6 @@ if __name__ == "__main__":
     assert isinstance(test[0], Tensor)
     assert train[0].dtype == torch.uint8
     assert test[0].dtype == torch.uint8
-    assert train.image_size() == (1, 28, 28)
 
     logging.info(f"example size: {train.image_size()}")
+    assert train.image_size() == (1, 28, 28)
