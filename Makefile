@@ -12,6 +12,9 @@ fit:
 	ACCELERATOR=$(ACCELERATOR) \
 	python -m amls_gan.trainer
 
+tensorboard:
+	tensorboard --logdir=$(dir $(RUN_DIR)) --port=0
+
 clean:
 	rm -rf $(dir $(RUN_DIR))*
 
