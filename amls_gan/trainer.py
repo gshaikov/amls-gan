@@ -3,6 +3,7 @@ import logging
 import torch
 import torchvision.utils as vutils
 from torch import Tensor, nn, optim
+from torch.amp.autocast_mode import autocast
 from torch.utils.tensorboard.writer import SummaryWriter
 from torchvision import transforms as T
 from tqdm import tqdm
@@ -41,6 +42,7 @@ class Trainer:
         self.transforms = cifar10_transforms()
 
         self.device = torch.device(ACCELERATOR)
+        self.amp_enabled = "cuda" in str(self.device)
 
         noise_dim = 100
 
@@ -98,21 +100,25 @@ class Trainer:
                     real_imgs = self.transforms(real_imgs)
                     real_imgs = real_imgs.to(self.device)
 
-                    with torch.no_grad():
-                        noise_dis = self.gen.noise(batch_size).to(self.device)
-                        fake_imgs_dis = self.gen(noise_dis)
+                    with autocast(
+                        device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
+                    ):
+                        with torch.no_grad():
+                            noise_dis = self.gen.noise(batch_size).to(self.device)
+                            fake_imgs_dis = self.gen(noise_dis)
 
-                    batch_dis = torch.cat([real_imgs, fake_imgs_dis])
-                    targets_dis = torch.cat(
-                        [
-                            torch.ones((batch_size, 1), dtype=torch.float, device=self.device),
-                            torch.zeros((batch_size, 1), dtype=torch.float, device=self.device),
-                        ]
-                    )
+                        batch_dis = torch.cat([real_imgs, fake_imgs_dis])
+                        targets_dis = torch.cat(
+                            [
+                                torch.ones((batch_size, 1), dtype=torch.float, device=self.device),
+                                torch.zeros((batch_size, 1), dtype=torch.float, device=self.device),
+                            ]
+                        )
 
-                    probs_dis = self.dis(batch_dis)
-                    loss_dis = self.loss(probs_dis, targets_dis)
+                        probs_dis = self.dis(batch_dis)
+                        loss_dis = self.loss(probs_dis, targets_dis)
 
+                    # TODO: add gradient scaling
                     self.opt_dis.zero_grad()
                     loss_dis.backward()
                     self.opt_dis.step()
@@ -123,11 +129,15 @@ class Trainer:
 
                     targets_gen = torch.ones((batch_size, 1), dtype=torch.float, device=self.device)
 
-                    noise_gen = self.gen.noise(batch_size).to(self.device)
-                    fake_imgs_gen = self.gen(noise_gen)
-                    probs_gen = self.dis(fake_imgs_gen)
-                    loss_gen = self.loss(probs_gen, targets_gen)
+                    with autocast(
+                        device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
+                    ):
+                        noise_gen = self.gen.noise(batch_size).to(self.device)
+                        fake_imgs_gen = self.gen(noise_gen)
+                        probs_gen = self.dis(fake_imgs_gen)
+                        loss_gen = self.loss(probs_gen, targets_gen)
 
+                    # TODO: add gradient scaling
                     self.opt_gen.zero_grad()
                     loss_gen.backward()
                     self.opt_gen.step()
@@ -140,8 +150,9 @@ class Trainer:
                     tensorboard.add_scalar("Loss/Dis", loss_dis, global_step)
 
                 # Log fake images per epoch
-                with torch.no_grad():
-                    fake_imgs_static = self.gen(static_noise).cpu()
+                with autocast(device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled):
+                    with torch.no_grad():
+                        fake_imgs_static = self.gen(static_noise).cpu()
                 grid = vutils.make_grid(fake_imgs_static, nrow=8, padding=2, normalize=True)
                 tensorboard.add_image("image", grid, epoch)
 
