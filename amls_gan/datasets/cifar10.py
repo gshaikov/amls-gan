@@ -27,21 +27,34 @@ class TensorCIFAR10(Dataset[Tensor]):
     dir: Path = env.path("CIFAR10_DIR", default=DATASETS_DIR / "cifar10")
 
     @classmethod
-    def create(cls, split: Splits, download: bool = False) -> "TensorCIFAR10":
+    def create(cls, split: Splits, download: bool = False, **kwargs: Any) -> "TensorCIFAR10":
+        """
+        Initialise CIFAR10 tensor dataset, optionally downloading it first.
+
+        Args:
+            split: train or test.
+            download (optional): if True, download dataest if it's not yet done.
+            image_h_w (optional): set a desired output image size (int, int).
+        """
         if not cls.dir.exists():
             cls.dir.mkdir(parents=True)
         cifar = CIFAR10(root=str(cls.dir), train=split == "train", download=download)
-        return cls(cifar)
+        return cls(cifar, **kwargs)
 
-    def __init__(self, cifar10: CIFAR10) -> None:
+    def __init__(self, cifar10: CIFAR10, image_h_w: tuple[int, int] = (32, 32)) -> None:
         self.cifar10 = cifar10
 
         self.split: Splits = "train" if cifar10.train is True else "test"
-        self.transform = T.PILToTensor()
+
+        self.transform = (
+            T.PILToTensor()
+            if image_h_w == (32, 32)
+            else T.Compose([T.Resize(image_h_w), T.PILToTensor()])
+        )
 
     def __getitem__(self, index: int) -> Tensor:
         img, _ = cast(tuple[Image, Any], self.cifar10[index])
-        img_t = self.transform(img)
+        img_t = cast(Tensor, self.transform(img))
         assert img_t.dtype == torch.uint8
         return img_t
 

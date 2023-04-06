@@ -28,6 +28,13 @@ class TensorMNIST(Dataset[Tensor]):
 
     @classmethod
     def create(cls, split: Splits, download: bool = False) -> "TensorMNIST":
+        """
+        Initialise MNIST tensor dataset, optionally downloading it first.
+
+        Args:
+            split: train or test.
+            download (optional): if True, download dataest if it's not yet done.
+        """
         if not cls.dir.exists():
             cls.dir.mkdir(parents=True)
         cifar = MNIST(root=str(cls.dir), train=split == "train", download=download)
