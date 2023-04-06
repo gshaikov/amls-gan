@@ -8,7 +8,7 @@ from torch.utils.tensorboard.writer import SummaryWriter
 from torchvision import transforms as T
 from tqdm import tqdm
 
-from amls_gan import ACCELERATOR, RUN_DIR
+from amls_gan import ACCELERATOR, EPOCHS, RUN_DIR
 from amls_gan.datasets.module import DataModule
 from amls_gan.models.dcgan import DCDiscriminator, DCGenerator
 
@@ -72,8 +72,6 @@ class Trainer:
             # weight_decay=1e-4,
         )
 
-        self.epochs = 100
-
     def fit(self) -> None:
         tensorboard = SummaryWriter(log_dir=RUN_DIR)
 
@@ -82,7 +80,7 @@ class Trainer:
 
         static_noise = self.gen.noise(64).to(self.device)
 
-        for epoch in range(self.epochs):
+        for epoch in range(EPOCHS):
             real_imgs: Tensor
 
             with tqdm(train_dl) as t:
