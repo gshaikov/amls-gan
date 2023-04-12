@@ -76,9 +76,16 @@ class Trainer:
         tensorboard = SummaryWriter(log_dir=RUN_DIR)
 
         train_dl = self.datamodule.train_dataloader()
+
+        real_batch = next(iter(train_dl))
+        real_grid = vutils.make_grid(real_batch[:64], nrow=8, padding=2)
+        tensorboard.add_image("real_images", real_grid, 0)
+
         steps_in_epoch = len(train_dl)
 
         static_noise = self.gen.noise(64).to(self.device)
+
+        global_step = 0
 
         for epoch in range(EPOCHS):
             real_imgs: Tensor
@@ -147,12 +154,17 @@ class Trainer:
                     tensorboard.add_scalar("Loss/Gen", loss_gen, global_step)
                     tensorboard.add_scalar("Loss/Dis", loss_dis, global_step)
 
-                # Log fake images per epoch
-                with autocast(device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled):
-                    with torch.no_grad():
-                        fake_imgs_static = self.gen(static_noise).cpu()
-                grid = vutils.make_grid(fake_imgs_static, nrow=8, padding=2, normalize=True)
-                tensorboard.add_image("image", grid, epoch)
+                    # Log fake images per 50 steps
+                    if global_step % 50 == 0:
+                        with autocast(
+                            device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
+                        ):
+                            with torch.no_grad():
+                                fake_imgs_static = self.gen(static_noise).detach().cpu()
+                        fake_grid = vutils.make_grid(
+                            fake_imgs_static, nrow=8, padding=2, normalize=True
+                        )
+                        tensorboard.add_image("fake_images", fake_grid, global_step)
 
         tensorboard.close()
 
