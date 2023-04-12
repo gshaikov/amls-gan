@@ -65,7 +65,7 @@ class DCGenerator(nn.Module):
         """
         Random uniform noise in [-1, 1] as (N, Z) tensor.
         """
-        return torch.rand((N, self.noise_dim)) * 2 - 1
+        return torch.randn((N, self.noise_dim))
 
     def forward(self, z: Tensor) -> Tensor:
         """
