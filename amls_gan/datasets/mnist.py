@@ -31,6 +31,8 @@ class TensorMNIST(Dataset[Tensor]):
         """
         Initialise MNIST tensor dataset, optionally downloading it first.
 
+        TODO: download should be an ENV var.
+
         Args:
             split: train or test.
             download (optional): if True, download dataest if it's not yet done.

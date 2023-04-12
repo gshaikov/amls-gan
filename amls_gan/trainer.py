@@ -10,6 +10,7 @@ from torchvision import transforms as T
 from tqdm import tqdm
 
 from amls_gan import ACCELERATOR, EPOCHS, RUN_DIR
+from amls_gan.datasets import TensorCIFAR10
 from amls_gan.datasets.module import DataModule
 from amls_gan.models.dcgan import DCDiscriminator, DCGenerator
 
@@ -39,7 +40,7 @@ class Trainer:
     def __init__(self) -> None:
         image_h_w = (64, 64)
 
-        self.datamodule = DataModule.cifar10()
+        self.datamodule = DataModule.create(TensorCIFAR10)
 
         self.transforms = cifar10_transforms(image_h_w)
 

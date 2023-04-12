@@ -1,8 +1,9 @@
+from typing import Type
+
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from amls_gan.datasets.cifar10 import TensorCIFAR10
-from amls_gan.datasets.mnist import TensorMNIST
+from amls_gan.datasets import TensorCIFAR10, TensorMNIST
 
 MyDatasets = TensorCIFAR10 | TensorMNIST
 
@@ -13,25 +14,10 @@ class DataModule:
         self.test = test
 
     @classmethod
-    def cifar10(cls, download: bool = False) -> "DataModule":
-        """
-        Args:
-            download (optional): if True, download dataest if it's not yet done.
-        """
+    def create(cls, ds_t: Type[MyDatasets]) -> "DataModule":
         return cls(
-            train=TensorCIFAR10.create("train", download=download),
-            test=TensorCIFAR10.create("test", download=download),
-        )
-
-    @classmethod
-    def mnist(cls, download: bool = False) -> "DataModule":
-        """
-        Args:
-            download (optional): if True, download dataest if it's not yet done.
-        """
-        return cls(
-            train=TensorMNIST.create("train", download=download),
-            test=TensorMNIST.create("test", download=download),
+            train=ds_t.create("train"),
+            test=ds_t.create("test"),
         )
 
     def image_size(self) -> tuple[int, int, int]:
