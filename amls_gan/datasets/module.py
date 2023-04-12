@@ -3,9 +3,9 @@ from typing import Type
 from torch import Tensor
 from torch.utils.data import DataLoader
 
-from amls_gan.datasets import TensorCIFAR10, TensorMNIST
+from amls_gan.datasets import TensorCelebA, TensorCIFAR10, TensorMNIST
 
-MyDatasets = TensorCIFAR10 | TensorMNIST
+MyDatasets = TensorCIFAR10 | TensorMNIST | TensorCelebA
 
 
 class DataModule:

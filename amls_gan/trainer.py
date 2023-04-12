@@ -10,7 +10,7 @@ from torchvision import transforms as T
 from tqdm import tqdm
 
 from amls_gan import ACCELERATOR, EPOCHS, RUN_DIR
-from amls_gan.datasets import TensorCIFAR10
+from amls_gan.datasets import TensorCelebA, TensorCIFAR10
 from amls_gan.datasets.module import DataModule
 from amls_gan.models.dcgan import DCDiscriminator, DCGenerator
 
@@ -30,6 +30,17 @@ def cifar10_transforms(img_h_w: tuple[int, int]) -> T.Compose:
     return T.Compose(
         [
             T.Resize(img_h_w, antialias=True),
+            T.ConvertImageDtype(torch.float),
+            T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
+        ]
+    )
+
+
+def celeba_transforms(img_h_w: tuple[int, int]) -> T.Compose:
+    return T.Compose(
+        [
+            T.Resize(img_h_w, antialias=True),
+            T.CenterCrop(img_h_w),
             T.ConvertImageDtype(torch.float),
             T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
         ]
