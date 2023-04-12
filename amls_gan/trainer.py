@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 import torch
 import torchvision.utils as vutils
@@ -15,7 +16,7 @@ from amls_gan.models.dcgan import DCDiscriminator, DCGenerator
 logging.basicConfig(level=logging.DEBUG)
 
 
-def mnist_transforms() -> T.Compose:
+def mnist_transforms(*args: Any) -> T.Compose:
     return T.Compose(
         [
             T.ConvertImageDtype(torch.float),
@@ -24,9 +25,10 @@ def mnist_transforms() -> T.Compose:
     )
 
 
-def cifar10_transforms() -> T.Compose:
+def cifar10_transforms(img_h_w: tuple[int, int]) -> T.Compose:
     return T.Compose(
         [
+            T.Resize(img_h_w, antialias=True),
             T.ConvertImageDtype(torch.float),
             T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
         ]
@@ -37,9 +39,9 @@ class Trainer:
     def __init__(self) -> None:
         image_h_w = (64, 64)
 
-        self.datamodule = DataModule.cifar10(image_h_w=image_h_w)
+        self.datamodule = DataModule.cifar10()
 
-        self.transforms = cifar10_transforms()
+        self.transforms = cifar10_transforms(image_h_w)
 
         self.device = torch.device(ACCELERATOR)
         self.amp_enabled = "cuda" in str(self.device)

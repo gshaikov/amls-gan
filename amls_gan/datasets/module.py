@@ -1,5 +1,3 @@
-from typing import Any
-
 from torch import Tensor
 from torch.utils.data import DataLoader
 
@@ -15,23 +13,21 @@ class DataModule:
         self.test = test
 
     @classmethod
-    def cifar10(cls, download: bool = False, **kwargs: Any) -> "DataModule":
+    def cifar10(cls, download: bool = False) -> "DataModule":
         """
         Args:
             download (optional): if True, download dataest if it's not yet done.
-            kwargs (optional): any additional arguments to `TensorCIFAR10.create`.
         """
         return cls(
-            train=TensorCIFAR10.create("train", download=download, **kwargs),
-            test=TensorCIFAR10.create("test", download=download, **kwargs),
+            train=TensorCIFAR10.create("train", download=download),
+            test=TensorCIFAR10.create("test", download=download),
         )
 
     @classmethod
-    def mnist(cls, download: bool = False, **kwargs: Any) -> "DataModule":
+    def mnist(cls, download: bool = False) -> "DataModule":
         """
         Args:
             download (optional): if True, download dataest if it's not yet done.
-            kwargs (optional): no effect.
         """
         return cls(
             train=TensorMNIST.create("train", download=download),

@@ -27,39 +27,34 @@ class TensorCIFAR10(Dataset[Tensor]):
     dir: Path = env.path("CIFAR10_DIR", default=DATASETS_DIR / "cifar10")
 
     @classmethod
-    def create(cls, split: Splits, download: bool = False, **kwargs: Any) -> "TensorCIFAR10":
+    def create(cls, split: Splits, download: bool = False) -> "TensorCIFAR10":
         """
         Initialise CIFAR10 tensor dataset, optionally downloading it first.
 
         Args:
             split: train or test.
             download (optional): if True, download dataest if it's not yet done.
-            image_h_w (optional): set a desired output image size (int, int).
         """
         if not cls.dir.exists():
             cls.dir.mkdir(parents=True)
-        cifar = CIFAR10(root=str(cls.dir), train=split == "train", download=download)
-        return cls(cifar, **kwargs)
+        ds = CIFAR10(root=str(cls.dir), train=split == "train", download=download)
+        return cls(ds)
 
-    def __init__(self, cifar10: CIFAR10, image_h_w: tuple[int, int] = (32, 32)) -> None:
-        self.cifar10 = cifar10
+    def __init__(self, ds: CIFAR10) -> None:
+        self.ds = ds
 
-        self.split: Splits = "train" if cifar10.train is True else "test"
+        self.split: Splits = "train" if ds.train is True else "test"
 
-        self.transform = (
-            T.PILToTensor()
-            if image_h_w == (32, 32)
-            else T.Compose([T.Resize(image_h_w), T.PILToTensor()])
-        )
+        self.transform = T.PILToTensor()
 
     def __getitem__(self, index: int) -> Tensor:
-        img, _ = cast(tuple[Image, Any], self.cifar10[index])
-        img_t = cast(Tensor, self.transform(img))
+        img, _ = cast(tuple[Image, Any], self.ds[index])
+        img_t = self.transform(img)
         assert img_t.dtype == torch.uint8
         return img_t
 
     def __len__(self) -> int:
-        return len(self.cifar10)
+        return len(self.ds)
 
     def image_size(self) -> tuple[int, int, int]:
         return tuple(self[0].shape)
@@ -74,4 +69,3 @@ if __name__ == "__main__":
     assert test[0].dtype == torch.uint8
 
     logging.info(f"example size: {train.image_size()}")
-    assert train.image_size() == (3, 32, 32)
