@@ -1,4 +1,4 @@
-from typing import Type
+from typing import Any, Type
 
 from torch import Tensor
 from torch.utils.data import DataLoader
@@ -9,9 +9,15 @@ MyDatasets = TensorCIFAR10 | TensorMNIST | TensorCelebA
 
 
 class DataModule:
-    def __init__(self, *, train: MyDatasets, test: MyDatasets) -> None:
+    def __init__(self, *, train: MyDatasets, test: MyDatasets, **dl_kwargs: Any) -> None:
         self.train = train
         self.test = test
+
+        self.dl_kwargs = dict(
+            batch_size=128,
+            num_workers=0,
+            **dl_kwargs,
+        )
 
     @classmethod
     def create(cls, ds_t: Type[MyDatasets]) -> "DataModule":
@@ -26,15 +32,13 @@ class DataModule:
     def train_dataloader(self) -> DataLoader[Tensor]:
         return DataLoader(
             self.train,
-            batch_size=128,
             shuffle=True,
-            num_workers=0,
+            **self.dl_kwargs,
         )
 
     def test_dataloader(self) -> DataLoader[Tensor]:
         return DataLoader(
             self.test,
-            batch_size=128,
             shuffle=False,
-            num_workers=0,
+            **self.dl_kwargs,
         )
