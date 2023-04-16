@@ -16,32 +16,40 @@ from torch import Tensor, nn
 
 
 class DCGenerator(nn.Module):
-    def __init__(self, *, noise_dim: int) -> None:
+    def __init__(self, *, noise_dim: int, image_size: int = 64, feat_maps: int = 128) -> None:
         super().__init__()
+
         self.noise_dim = noise_dim
+
+        if image_size % 16 != 0:
+            raise ValueError(f"image size not divisible by 16: {image_size}")
+
+        feat_maps_size = image_size // 16
+        if feat_maps_size < 1:
+            raise ValueError(f"image size too small: {image_size}: feature map size is below 1")
 
         # Hout = (Hin - 1) * S + K - 2 * P
         self.layers = nn.Sequential(
             # (N, 100) -> (N, 100, 1, 1)
             nn.Unflatten(1, (self.noise_dim, 1, 1)),
             # Layer 1: (100, 1, 1) -> (1024, 4, 4)
-            nn.ConvTranspose2d(self.noise_dim, 1024, 4, 1, 0, bias=False),
-            nn.BatchNorm2d(1024),
-            nn.ReLU(),
+            nn.ConvTranspose2d(self.noise_dim, feat_maps * 8, feat_maps_size, 1, 0, bias=False),
+            nn.BatchNorm2d(feat_maps * 8),
+            nn.ReLU(inplace=True),
             # Layer 2: (1024, 4, 4) -> (512, 8, 8)
-            nn.ConvTranspose2d(1024, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
-            nn.ReLU(),
+            nn.ConvTranspose2d(feat_maps * 8, feat_maps * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(feat_maps * 4),
+            nn.ReLU(inplace=True),
             # Layer 3: (512, 8, 8) -> (256, 16, 16)
-            nn.ConvTranspose2d(512, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.ReLU(),
+            nn.ConvTranspose2d(feat_maps * 4, feat_maps * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(feat_maps * 2),
+            nn.ReLU(inplace=True),
             # Layer 4: (256, 16, 16) -> (128, 32, 32)
-            nn.ConvTranspose2d(256, 128, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(128),
-            nn.ReLU(),
+            nn.ConvTranspose2d(feat_maps * 2, feat_maps, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(feat_maps),
+            nn.ReLU(inplace=True),
             # Layer 5: (128, 32, 32) -> (3, 64, 64)
-            nn.ConvTranspose2d(128, 3, 4, 2, 1, bias=False),
+            nn.ConvTranspose2d(feat_maps, 3, 4, 2, 1, bias=False),
             nn.Tanh(),
         )
 
@@ -82,28 +90,35 @@ class DCGenerator(nn.Module):
 
 
 class DCDiscriminator(nn.Module):
-    def __init__(self) -> None:
+    def __init__(self, image_size: int = 64, feat_maps: int = 128) -> None:
         super().__init__()
+
+        if image_size % 16 != 0:
+            raise ValueError(f"image size not divisible by 16: {image_size}")
+
+        feat_maps_size = image_size // 16
+        if feat_maps_size < 1:
+            raise ValueError(f"image size too small: {image_size}: feature map size is below 1")
 
         # Hout = ceil[(Hin - K + 2 * P) / 2] + 1
         self.layers = nn.Sequential(
             # Layer 1: (3, 64, 64) -> (128, 32, 32)
-            nn.Conv2d(3, 128, 4, 2, 1, bias=False),
-            nn.LeakyReLU(0.2),
+            nn.Conv2d(3, feat_maps, 4, 2, 1, bias=False),
+            nn.LeakyReLU(0.2, inplace=True),
             # Layer 2: (128, 32, 32) -> (256, 16, 16)
-            nn.Conv2d(128, 256, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(256),
-            nn.LeakyReLU(0.2),
+            nn.Conv2d(feat_maps, feat_maps * 2, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(feat_maps * 2),
+            nn.LeakyReLU(0.2, inplace=True),
             # Layer 3: (256, 16, 16) -> (512, 8, 8)
-            nn.Conv2d(256, 512, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(512),
-            nn.LeakyReLU(0.2),
+            nn.Conv2d(feat_maps * 2, feat_maps * 4, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(feat_maps * 4),
+            nn.LeakyReLU(0.2, inplace=True),
             # Layer 4: (512, 8, 8) -> (1024, 4, 4)
-            nn.Conv2d(512, 1024, 4, 2, 1, bias=False),
-            nn.BatchNorm2d(1024),
-            nn.LeakyReLU(0.2),
+            nn.Conv2d(feat_maps * 4, feat_maps * 8, 4, 2, 1, bias=False),
+            nn.BatchNorm2d(feat_maps * 8),
+            nn.LeakyReLU(0.2, inplace=True),
             # Layer 5: (1024, 4, 4) -> (1, 1, 1)
-            nn.Conv2d(1024, 1, 4, 1, 0, bias=False),
+            nn.Conv2d(feat_maps * 8, 1, feat_maps_size, 1, 0, bias=False),
             nn.Sigmoid(),
             # (N, 1, 1, 1) -> (N, 1)
             nn.Flatten(1),
