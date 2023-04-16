@@ -10,11 +10,20 @@ from torchvision import transforms as T
 from tqdm import tqdm
 
 from amls_gan import ACCELERATOR, EPOCHS, RUN_DIR
-from amls_gan.datasets import TensorCelebA, TensorCIFAR10
+from amls_gan.datasets import Datasets
 from amls_gan.datasets.module import DataModule
 from amls_gan.models.dcgan import DCDiscriminator, DCGenerator
 
 logging.basicConfig(level=logging.DEBUG)
+
+
+class Div(nn.Module):
+    def __init__(self, by: float) -> None:
+        super().__init__()
+        self.by = by
+
+    def forward(self, t: Tensor) -> Tensor:
+        return t.div(self.by)
 
 
 def mnist_transforms(*args: Any) -> T.Compose:
@@ -29,7 +38,7 @@ def mnist_transforms(*args: Any) -> T.Compose:
 def cifar10_transforms(img_h_w: tuple[int, int]) -> T.Compose:
     return T.Compose(
         [
-            T.Resize(img_h_w, antialias=True),
+            T.Resize(img_h_w, antialias=True),  # type: ignore
             T.ConvertImageDtype(torch.float),
             T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
         ]
@@ -39,9 +48,10 @@ def cifar10_transforms(img_h_w: tuple[int, int]) -> T.Compose:
 def celeba_transforms(img_h_w: tuple[int, int]) -> T.Compose:
     return T.Compose(
         [
-            T.Resize(img_h_w, antialias=True),
+            T.Resize(img_h_w, antialias=True),  # type: ignore
             T.CenterCrop(img_h_w),
             T.ConvertImageDtype(torch.float),
+            Div(255.0),
             T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
         ]
     )
@@ -51,20 +61,20 @@ class Trainer:
     def __init__(self) -> None:
         image_h_w = (64, 64)
 
-        self.datamodule = DataModule.create(TensorCIFAR10)
+        self.datamodule = DataModule.create(Datasets.TensorCelebA)
 
-        self.transforms = cifar10_transforms(image_h_w)
+        self.transforms = celeba_transforms(image_h_w)
 
         self.device = torch.device(ACCELERATOR)
         self.amp_enabled = "cuda" in str(self.device)
 
         noise_dim = 100
 
-        gen = DCGenerator(noise_dim=noise_dim).to(self.device)
+        gen = DCGenerator(noise_dim=noise_dim, feat_maps=64).to(self.device)
         gen.init_weights_()
         self.gen = gen
 
-        dis = DCDiscriminator().to(self.device)
+        dis = DCDiscriminator(feat_maps=64).to(self.device)
         dis.init_weights_()
         self.dis = dis
 
@@ -91,8 +101,8 @@ class Trainer:
 
         train_dl = self.datamodule.train_dataloader()
 
-        real_batch = next(iter(train_dl))
-        real_grid = vutils.make_grid(real_batch[:64], nrow=8, padding=2)
+        real_batch = self.transforms(next(iter(train_dl)))
+        real_grid = vutils.make_grid(real_batch[:64], nrow=8, padding=2, normalize=True)
         tensorboard.add_image("real_images", real_grid, 0)
 
         steps_in_epoch = len(train_dl)
