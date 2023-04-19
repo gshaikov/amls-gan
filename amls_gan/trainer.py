@@ -1,60 +1,26 @@
 import logging
-from typing import Any
+from pathlib import Path
 
 import torch
 import torchvision.utils as vutils
+from environs import Env
 from torch import Tensor, nn, optim
 from torch.amp.autocast_mode import autocast
 from torch.utils.tensorboard.writer import SummaryWriter
-from torchvision import transforms as T
 from tqdm import tqdm
 
-from amls_gan import ACCELERATOR, EPOCHS, RUN_DIR
 from amls_gan.datasets import Datasets
 from amls_gan.datasets.module import DataModule
-from amls_gan.models.dcgan import DCDiscriminator, DCGenerator
+from amls_gan.models.dcgan import DCDiscriminator, DCGenerator, ModelStats
+from amls_gan.models.transforms import celeba_transforms
+
+env = Env()
+
+RUN_DIR: Path = env.path("RUN_DIR")
+ACCELERATOR: str = env.str("ACCELERATOR")
+EPOCHS: int = env.int("EPOCHS")
 
 logging.basicConfig(level=logging.DEBUG)
-
-
-class Div(nn.Module):
-    def __init__(self, by: float) -> None:
-        super().__init__()
-        self.by = by
-
-    def forward(self, t: Tensor) -> Tensor:
-        return t.div(self.by)
-
-
-def mnist_transforms(*args: Any) -> T.Compose:
-    return T.Compose(
-        [
-            T.ConvertImageDtype(torch.float),
-            T.Normalize([0.5], [0.5]),
-        ]
-    )
-
-
-def cifar10_transforms(img_h_w: tuple[int, int]) -> T.Compose:
-    return T.Compose(
-        [
-            T.Resize(img_h_w, antialias=True),  # type: ignore
-            T.ConvertImageDtype(torch.float),
-            T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
-        ]
-    )
-
-
-def celeba_transforms(img_h_w: tuple[int, int]) -> T.Compose:
-    return T.Compose(
-        [
-            T.Resize(img_h_w, antialias=True),  # type: ignore
-            T.CenterCrop(img_h_w),
-            T.ConvertImageDtype(torch.float),
-            Div(255.0),
-            T.Normalize([0.5, 0.5, 0.5], [0.5, 0.5, 0.5]),
-        ]
-    )
 
 
 class Trainer:
