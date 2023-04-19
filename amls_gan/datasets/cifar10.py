@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms as T
 from torchvision.datasets import CIFAR10
 
-from amls_gan import DATASETS_DIR
+from amls_gan.datasets._envs import DATASETS_DIR
 
 logging.basicConfig(level=logging.INFO)
 
