@@ -16,14 +16,15 @@ class DataModule:
         self.dl_kwargs = dict(
             batch_size=128,
             num_workers=0,
-            **dl_kwargs,
         )
+        self.dl_kwargs.update(dl_kwargs)
 
     @classmethod
-    def create(cls, ds_t: Type[MyDatasets]) -> "DataModule":
+    def create(cls, ds_t: Type[MyDatasets], **dl_kwargs: Any) -> "DataModule":
         return cls(
             train=ds_t.create("train"),
             test=ds_t.create("test"),
+            **dl_kwargs,
         )
 
     def image_size(self) -> tuple[int, int, int]:
