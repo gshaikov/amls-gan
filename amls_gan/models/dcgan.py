@@ -14,6 +14,8 @@ from typing import Any, Callable
 import torch
 from torch import Tensor, nn
 
+from amls_gan.typing_utils import not_none
+
 
 class DCGenerator(nn.Module):
     def __init__(self, *, noise_dim: int, image_size: int = 64, feat_maps: int = 128) -> None:
@@ -71,7 +73,7 @@ class DCGenerator(nn.Module):
 
     def noise(self, N: int) -> Tensor:
         """
-        Random uniform noise in [-1, 1] as (N, Z) tensor.
+        Random Gaussian noise N(0,1) as (N, Z) tensor.
         """
         return torch.randn((N, self.noise_dim))
 
@@ -162,3 +164,53 @@ class _PrintLambda(nn.Module):
     def forward(self, x: Tensor) -> Tensor:
         logging.debug(f"PrintLambda: {self.fn(x)}")
         return x
+
+
+# Model statistics for analysis
+
+
+class ModelStats:
+    @classmethod
+    def weights(
+        cls, model: DCGenerator | DCDiscriminator, filter_modules: list[str]
+    ) -> dict[str, float]:
+        """Return weight stats"""
+
+        def _weights(module: nn.Module) -> Tensor:
+            return torch.cat([p.data.view(-1) for p in module.parameters()])
+
+        ms = cls.filter_modules(model, filter_modules)
+        t = torch.cat([_weights(m) for m in ms])
+        return cls.tensor_to_stats(t)
+
+    @classmethod
+    def grads(
+        cls, model: DCGenerator | DCDiscriminator, filter_modules: list[str]
+    ) -> dict[str, float]:
+        """Return grad stats"""
+
+        def _grads(module: nn.Module) -> Tensor:
+            return torch.cat([not_none(p.grad).view(-1) for p in module.parameters()])
+
+        ms = cls.filter_modules(model, filter_modules)
+        t = torch.cat([_grads(m) for m in ms])
+        return cls.tensor_to_stats(t)
+
+    @staticmethod
+    def filter_modules(
+        model: DCGenerator | DCDiscriminator, filter_modules: list[str]
+    ) -> list[nn.Module]:
+        ms: list[nn.Module] = []
+        for module in model.layers._modules.values():
+            name = module.__class__.__name__
+            if name in filter_modules:
+                ms.append(module)
+        return ms
+
+    @staticmethod
+    def tensor_to_stats(t: Tensor) -> dict[str, float]:
+        return {
+            "max": t.detach().cpu().max().item(),
+            "min": t.detach().cpu().min().item(),
+            "median": t.detach().cpu().median().item(),
+        }
