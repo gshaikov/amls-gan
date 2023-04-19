@@ -69,7 +69,7 @@ class Trainer:
 
         real_batch = self.transforms(next(iter(train_dl)))
         real_grid = vutils.make_grid(real_batch[:64], nrow=8, padding=2, normalize=True)
-        tensorboard.add_image("real_images", real_grid, 0)
+        tensorboard.add_image("Images/Real", real_grid, 0)
 
         steps_in_epoch = len(train_dl)
 
@@ -77,9 +77,8 @@ class Trainer:
 
         global_step = 0
 
+        real_imgs: Tensor
         for epoch in range(EPOCHS):
-            real_imgs: Tensor
-
             with tqdm(train_dl) as t:
                 t.set_description(f"Epoch: {epoch}")
 
@@ -137,24 +136,35 @@ class Trainer:
                     loss_gen.backward()
                     self.opt_gen.step()
 
-                    # Log loss per step
-                    loss_gen = loss_gen.detach().cpu().item()
-                    loss_dis = loss_dis.detach().cpu().item()
-                    t.set_postfix(loss_gen=f"{loss_gen:.4f}", loss_dis=f"{loss_dis:.4f}")
-                    tensorboard.add_scalar("Loss/Gen", loss_gen, global_step)
-                    tensorboard.add_scalar("Loss/Dis", loss_dis, global_step)
+                    # Log metrics
+                    loss_gen_v = loss_gen.detach().cpu().item()
+                    loss_dis_v = loss_dis.detach().cpu().item()
+                    t.set_postfix(loss_gen=f"{loss_gen_v:.2E}", loss_dis=f"{loss_dis_v:.2E}")
+                    tensorboard.add_scalar("Loss/Gen", loss_gen_v, global_step)
+                    tensorboard.add_scalar("Loss/Dis", loss_dis_v, global_step)
+
+                    weights_gen = ModelStats.weights(self.gen, ["ConvTranspose2d"])
+                    weights_dis = ModelStats.weights(self.dis, ["Conv2d"])
+                    tensorboard.add_scalars("ConvWeights/Gen", weights_gen, global_step)
+                    tensorboard.add_scalars("ConvWeights/Dis", weights_dis, global_step)
+
+                    grads_gen = ModelStats.grads(self.gen, ["ConvTranspose2d"])
+                    grads_dis = ModelStats.grads(self.dis, ["Conv2d"])
+                    tensorboard.add_scalars("ConvGrads/Gen", grads_gen, global_step)
+                    tensorboard.add_scalars("ConvGrads/Dis", grads_dis, global_step)
 
                     # Log fake images per 50 steps
                     if global_step % 50 == 0:
                         with autocast(
                             device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
                         ):
+                            self.gen.eval()
                             with torch.no_grad():
                                 fake_imgs_static = self.gen(static_noise).detach().cpu()
                         fake_grid = vutils.make_grid(
                             fake_imgs_static, nrow=8, padding=2, normalize=True
                         )
-                        tensorboard.add_image("fake_images", fake_grid, global_step)
+                        tensorboard.add_image("Images/Fake", fake_grid, global_step)
 
         tensorboard.close()
 
