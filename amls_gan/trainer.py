@@ -88,20 +88,35 @@ class Trainer:
                     batch_size = len(real_imgs)
 
                     # Train discriminator
-                    self.gen.eval()
+                    self.gen.train()
                     self.dis.train()
 
-                    real_imgs = self.transforms(real_imgs)
-                    real_imgs = real_imgs.to(self.device)
+                    real_imgs = self.transforms(real_imgs).to(self.device)
 
                     with autocast(
                         device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
                     ):
                         with torch.no_grad():
                             noise_dis = self.gen.noise(batch_size).to(self.device)
-                            fake_imgs_dis = self.gen(noise_dis)
+                            fake_imgs_dis: Tensor = self.gen(noise_dis)
 
-                        batch_dis = torch.cat([real_imgs, fake_imgs_dis])
+                        # Separate passes for fake and real images.
+                        # Batchnorm will normalise over all examples per channel, however fake and
+                        # real images come from different distributions in the beginning of
+                        # training, which means that discriminator will have an easy job separating
+                        # them.
+                        # The result is that discriminator error is low.
+                        # During Generator update, Distriminator will see only fake images,
+                        # and batchnorm will normalise the distribution which will make it look
+                        # *different* from the normalised distribution of fake images during
+                        # Discriminator update.
+                        # Discriminator will have hard time classifying the images and Generator
+                        # error will be low.
+                        # The result is that neither Discriminator nor Generator are learning.
+                        probs_dis_real: Tensor = self.dis(real_imgs)
+                        probs_dis_fake: Tensor = self.dis(fake_imgs_dis)
+
+                        probs_dis = torch.cat([probs_dis_real, probs_dis_fake])
                         targets_dis = torch.cat(
                             [
                                 torch.ones((batch_size, 1), dtype=torch.float, device=self.device),
@@ -109,8 +124,8 @@ class Trainer:
                             ]
                         )
 
-                        probs_dis = self.dis(batch_dis)
-                        loss_dis = self.loss(probs_dis, targets_dis)
+                        # multiply by 2 since (Goodfellow et al. 2014) sums the losses
+                        loss_dis: Tensor = self.loss(probs_dis, targets_dis) * 2
 
                     # TODO: add gradient scaling
                     self.opt_dis.zero_grad()
@@ -119,7 +134,7 @@ class Trainer:
 
                     # Train generator
                     self.gen.train()
-                    self.dis.eval()
+                    self.dis.train()
 
                     targets_gen = torch.ones((batch_size, 1), dtype=torch.float, device=self.device)
 
@@ -127,9 +142,9 @@ class Trainer:
                         device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
                     ):
                         noise_gen = self.gen.noise(batch_size).to(self.device)
-                        fake_imgs_gen = self.gen(noise_gen)
-                        probs_gen = self.dis(fake_imgs_gen)
-                        loss_gen = self.loss(probs_gen, targets_gen)
+                        fake_imgs_gen: Tensor = self.gen(noise_gen)
+                        probs_gen: Tensor = self.dis(fake_imgs_gen)
+                        loss_gen: Tensor = self.loss(probs_gen, targets_gen)
 
                     # TODO: add gradient scaling
                     self.opt_gen.zero_grad()
@@ -152,6 +167,13 @@ class Trainer:
                     grads_dis = ModelStats.grads(self.dis, ["Conv2d"])
                     tensorboard.add_scalars("ConvGrads/Gen", grads_gen, global_step)
                     tensorboard.add_scalars("ConvGrads/Dis", grads_dis, global_step)
+
+                    mean_probs = {
+                        "gen_fake": probs_gen.mean().detach().cpu(),
+                        "dis_real": probs_dis_real.mean().detach().cpu(),
+                        "dis_fake": probs_dis_fake.mean().detach().cpu(),
+                    }
+                    tensorboard.add_scalars("MeanProbs", mean_probs, global_step)
 
                     # Log fake images per 50 steps
                     if global_step % 50 == 0:
