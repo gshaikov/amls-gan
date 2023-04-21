@@ -14,7 +14,6 @@ class DataModule:
         self.test = test
 
         self.dl_kwargs = dict(
-            batch_size=128,
             num_workers=0,
         )
         self.dl_kwargs.update(dl_kwargs)
