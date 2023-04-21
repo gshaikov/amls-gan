@@ -25,39 +25,40 @@ logging.basicConfig(level=logging.DEBUG)
 
 class Trainer:
     def __init__(self) -> None:
+        # Config
         image_h_w = (64, 64)
+        noise_dim = 100
+        feat_maps = 64
+        batch_size = 128
+        learning_rate = 2e-4
 
-        self.datamodule = DataModule.create(Datasets.TensorCelebA)
+        self.datamodule = DataModule.create(Datasets.TensorCelebA, batch_size=batch_size)
 
         self.transforms = celeba_transforms(image_h_w)
 
         self.device = torch.device(ACCELERATOR)
         self.amp_enabled = "cuda" in str(self.device)
 
-        noise_dim = 100
-
-        gen = DCGenerator(noise_dim=noise_dim, feat_maps=64).to(self.device)
+        gen = DCGenerator(noise_dim=noise_dim, feat_maps=feat_maps).to(self.device)
         gen.init_weights_()
         self.gen = gen
 
-        dis = DCDiscriminator(feat_maps=64).to(self.device)
+        dis = DCDiscriminator(feat_maps=feat_maps).to(self.device)
         dis.init_weights_()
         self.dis = dis
 
-        self.loss = nn.BCELoss()
-
-        lr = 2e-4
+        self.loss = nn.BCELoss(reduction="mean")
 
         self.opt_gen = optim.AdamW(
             self.gen.parameters(),
-            lr=lr,
+            lr=learning_rate,
             betas=(0.5, 0.999),
             # weight_decay=1e-4,
         )
 
         self.opt_dis = optim.AdamW(
             self.dis.parameters(),
-            lr=lr,
+            lr=learning_rate,
             betas=(0.5, 0.999),
             # weight_decay=1e-4,
         )
