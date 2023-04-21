@@ -32,8 +32,6 @@ class DCGenerator(nn.Module):
 
         # Hout = (Hin - 1) * S + K - 2 * P
         self.layers = nn.Sequential(
-            # (N, 100) -> (N, 100, 1, 1)
-            nn.Unflatten(1, (self.noise_dim, 1, 1)),
             # Layer 1: (100, 1, 1) -> (1024, 4, 4)
             nn.ConvTranspose2d(self.noise_dim, feat_maps * 8, feat_maps_size, 1, 0, bias=False),
             nn.BatchNorm2d(feat_maps * 8),
@@ -87,7 +85,9 @@ class DCGenerator(nn.Module):
             normalised image as float tensor
                 shape: (N, C, H, W)
         """
-        x = self.layers(z)
+        # (N, Z) -> (N, Z, 1, 1)
+        z = z.view(*z.shape, 1, 1)
+        x: Tensor = self.layers(z)
         return x
 
 
@@ -122,8 +122,6 @@ class DCDiscriminator(nn.Module):
             # Layer 5: (1024, 4, 4) -> (1, 1, 1)
             nn.Conv2d(feat_maps * 8, 1, feat_maps_size, 1, 0, bias=False),
             nn.Sigmoid(),
-            # (N, 1, 1, 1) -> (N, 1)
-            nn.Flatten(1),
         )
 
     @staticmethod
@@ -152,7 +150,9 @@ class DCDiscriminator(nn.Module):
             tensor of probabilities [0, 1]
                 shape: (N, 1)
         """
-        p = self.layers(x)
+        p: Tensor = self.layers(x)
+        # (N, 1, 1, 1) -> (N, 1)
+        p = p.view(len(p), 1)
         return p
 
 
