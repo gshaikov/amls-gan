@@ -155,28 +155,28 @@ class Trainer:
                     loss_gen_v = loss_gen.detach().cpu().item()
                     loss_dis_v = loss_dis.detach().cpu().item()
                     t.set_postfix(loss_gen=f"{loss_gen_v:.2E}", loss_dis=f"{loss_dis_v:.2E}")
-                    tensorboard.add_scalar("Loss/Gen", loss_gen_v, global_step)
-                    tensorboard.add_scalar("Loss/Dis", loss_dis_v, global_step)
 
-                    weights_gen = ModelStats.weights(self.gen, ["ConvTranspose2d"])
-                    weights_dis = ModelStats.weights(self.dis, ["Conv2d"])
-                    tensorboard.add_scalars("ConvWeights/Gen", weights_gen, global_step)
-                    tensorboard.add_scalars("ConvWeights/Dis", weights_dis, global_step)
-
-                    grads_gen = ModelStats.grads(self.gen, ["ConvTranspose2d"])
-                    grads_dis = ModelStats.grads(self.dis, ["Conv2d"])
-                    tensorboard.add_scalars("ConvGrads/Gen", grads_gen, global_step)
-                    tensorboard.add_scalars("ConvGrads/Dis", grads_dis, global_step)
-
-                    mean_probs = {
-                        "gen_fake": probs_gen.mean().detach().cpu(),
-                        "dis_real": probs_dis_real.mean().detach().cpu(),
-                        "dis_fake": probs_dis_fake.mean().detach().cpu(),
-                    }
-                    tensorboard.add_scalars("MeanProbs", mean_probs, global_step)
-
-                    # Log fake images per 50 steps
                     if global_step % 50 == 0:
+                        tensorboard.add_scalar("Loss/Gen", loss_gen_v, global_step)
+                        tensorboard.add_scalar("Loss/Dis", loss_dis_v, global_step)
+
+                        weights_gen = ModelStats.weights(self.gen, ["ConvTranspose2d"])
+                        weights_dis = ModelStats.weights(self.dis, ["Conv2d"])
+                        tensorboard.add_scalars("ConvWeights/Gen", weights_gen, global_step)
+                        tensorboard.add_scalars("ConvWeights/Dis", weights_dis, global_step)
+
+                        grads_gen = ModelStats.grads(self.gen, ["ConvTranspose2d"])
+                        grads_dis = ModelStats.grads(self.dis, ["Conv2d"])
+                        tensorboard.add_scalars("ConvGrads/Gen", grads_gen, global_step)
+                        tensorboard.add_scalars("ConvGrads/Dis", grads_dis, global_step)
+
+                        mean_probs = {
+                            "gen_fake": probs_gen.mean().detach().cpu(),
+                            "dis_real": probs_dis_real.mean().detach().cpu(),
+                            "dis_fake": probs_dis_fake.mean().detach().cpu(),
+                        }
+                        tensorboard.add_scalars("MeanProbs", mean_probs, global_step)
+
                         with autocast(
                             device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
                         ):
