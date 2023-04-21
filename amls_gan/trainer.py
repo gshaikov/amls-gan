@@ -88,6 +88,9 @@ class Trainer:
 
                     batch_size = len(real_imgs)
 
+                    ones = torch.ones((batch_size, 1), dtype=torch.float, device=self.device)
+                    zeros = torch.zeros((batch_size, 1), dtype=torch.float, device=self.device)
+
                     # Train discriminator
                     self.gen.train()
                     self.dis.train()
@@ -97,9 +100,8 @@ class Trainer:
                     with autocast(
                         device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
                     ):
-                        with torch.no_grad():
-                            noise_dis = self.gen.noise(batch_size).to(self.device)
-                            fake_imgs_dis: Tensor = self.gen(noise_dis)
+                        noise_dis = self.gen.noise(batch_size).to(self.device)
+                        fake_imgs: Tensor = self.gen(noise_dis)
 
                         # Separate passes for fake and real images.
                         # Batchnorm will normalise over all examples per channel, however fake and
@@ -115,18 +117,13 @@ class Trainer:
                         # error will be low.
                         # The result is that neither Discriminator nor Generator are learning.
                         probs_dis_real: Tensor = self.dis(real_imgs)
-                        probs_dis_fake: Tensor = self.dis(fake_imgs_dis)
+                        probs_dis_fake: Tensor = self.dis(fake_imgs.detach())
 
-                        probs_dis = torch.cat([probs_dis_real, probs_dis_fake])
-                        targets_dis = torch.cat(
-                            [
-                                torch.ones((batch_size, 1), dtype=torch.float, device=self.device),
-                                torch.zeros((batch_size, 1), dtype=torch.float, device=self.device),
-                            ]
-                        )
+                        loss_dis_real: Tensor = self.loss(probs_dis_real, ones)
+                        loss_dis_fake: Tensor = self.loss(probs_dis_fake, zeros)
 
-                        # multiply by 2 since (Goodfellow et al. 2014) sums the losses
-                        loss_dis: Tensor = self.loss(probs_dis, targets_dis) * 2
+                        # (Goodfellow et al. 2014) sums the losses
+                        loss_dis = loss_dis_real + loss_dis_fake
 
                     # TODO: add gradient scaling
                     self.opt_dis.zero_grad()
@@ -137,15 +134,11 @@ class Trainer:
                     self.gen.train()
                     self.dis.train()
 
-                    targets_gen = torch.ones((batch_size, 1), dtype=torch.float, device=self.device)
-
                     with autocast(
                         device_type="cuda", dtype=torch.float16, enabled=self.amp_enabled
                     ):
-                        noise_gen = self.gen.noise(batch_size).to(self.device)
-                        fake_imgs_gen: Tensor = self.gen(noise_gen)
-                        probs_gen: Tensor = self.dis(fake_imgs_gen)
-                        loss_gen: Tensor = self.loss(probs_gen, targets_gen)
+                        probs_gen: Tensor = self.dis(fake_imgs)
+                        loss_gen: Tensor = self.loss(probs_gen, ones)
 
                     # TODO: add gradient scaling
                     self.opt_gen.zero_grad()
